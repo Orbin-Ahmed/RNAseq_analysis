@@ -19,7 +19,6 @@ results <- decideTests(ebFit, method="global", adjust.method="BH", p.value=0.01,
 colnames(v.DEGList.filtered.norm$E) <- sampleLabels
 diffGenes <- v.DEGList.filtered.norm$E[results[,1] !=0,]
 dim(diffGenes)
-diffGenes
 clustRows <- hclust(as.dist(1-cor(t(diffGenes), method="pearson")), method="complete") 
 clustColumns <- hclust(as.dist(1-cor(diffGenes, method="spearman")), method="complete")
 
@@ -89,11 +88,20 @@ moduleData <- diffGenes[moduleSymbols$geneID,]
 moduleData.df <- as_tibble(moduleData, rownames = "geneSymbol")
 write_tsv(moduleData.df,"module_upRegulated.tsv")
 
-mySelectedGenes <- mydata.filter
-mySelectedGenes.matrix <- as.matrix(mySelectedGenes)
-mySelectedGenes
-hr <- hclust(as.dist(1-cor(t(mySelectedGenes), method="pearson")), method="complete")
-hc <- hclust(as.dist(1-cor(mySelectedGenes, method="spearman")), method="average")
+# Convert the specified columns to numeric values
+numeric_columns <- c("Dexamethasone.AVG", "Vehicle.AVG", "LogFC")
+mySelectedGenes.matrix[, numeric_columns] <- as.numeric(mySelectedGenes.matrix[, numeric_columns])
+
+# Extract only the numeric expression columns
+expression_data <- mySelectedGenes.matrix[, numeric_columns]
+
+# Calculate hierarchical clustering using Pearson correlation
+hr <- hclust(as.dist(1 - cor(t(expression_data), method = "pearson")), method = "complete")
+
+# Calculate hierarchical clustering using Spearman correlation
+hc <- hclust(as.dist(1 - cor(expression_data, method = "spearman")), method = "average")
+
+
 
 heatmap.2(mySelectedGenes.matrix, 
           Rowv=NA, Colv=NA, 
