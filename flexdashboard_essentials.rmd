@@ -1,0 +1,352 @@
+---
+title: "DIYtranscriptomics"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    source_code: embed
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+```
+
+Overview {data-icon="fa-signal"}
+===================================== 
+
+Row {data-height=400}
+------------------------------------------------------------------------------
+
+### Signal distribution: raw data
+
+```{r raw data}
+library(tidyverse) # provides access to Hadley Wickham's collection of R packages for data science, which we will use throughout the course
+library(tximport) # package for getting Kallisto results into R
+library(ensembldb) #helps deal with ensembl
+library(EnsDb.Hsapiens.v86) #replace with your organism-specific database package
+targets <- read_tsv("studydesign.txt")# read in your study design
+path <- file.path(targets$sample, "abundance.tsv") # set file paths to your mapped data
+Tx <- transcripts(EnsDb.Hsapiens.v86, columns=c("tx_id", "gene_name"))
+Tx <- as_tibble(Tx)
+Tx <- dplyr::rename(Tx, target_id = tx_id)
+Tx <- dplyr::select(Tx, "target_id", "gene_name")
+Txi_gene <- tximport(path, 
+                     type = "kallisto", 
+                     tx2gene = Tx, 
+                     txOut = FALSE, #determines whether your data represented at transcript or gene level
+                     countsFromAbundance = "lengthScaledTPM",
+                     ignoreTxVersion = TRUE)
+
+library(tidyverse)
+library(edgeR)
+library(matrixStats)
+library(cowplot)
+
+sampleLabels <- targets$sample
+myDGEList <- DGEList(Txi_gene$counts)
+log2.cpm <- cpm(myDGEList, log=TRUE)
+
+log2.cpm.df <- as_tibble(log2.cpm, rownames = "geneID")
+colnames(log2.cpm.df) <- c("geneID", sampleLabels)
+log2.cpm.df.pivot <- pivot_longer(log2.cpm.df, # dataframe to be pivoted
+                                  cols = HS01:CL13, # column names to be stored as a SINGLE variable
+                                  names_to = "samples", # name of that new variable (column)
+                                  values_to = "expression") # name of new variable (column) storing all the values (data)
+
+p1 <- ggplot(log2.cpm.df.pivot) +
+  aes(x=samples, y=expression, fill=samples) +
+  geom_violin(trim = FALSE, show.legend = FALSE) +
+  stat_summary(fun = "median", 
+               geom = "point", 
+               shape = 95, 
+               size = 10, 
+               color = "black", 
+               show.legend = FALSE) +
+  labs(y="log2 expression", x = "sample",
+       title="Log2 Counts per Million (CPM)",
+       subtitle="unfiltered, non-normalized",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw()
+
+cpm <- cpm(myDGEList)
+keepers <- rowSums(cpm>1)>=5 #user defined
+myDGEList.filtered <- myDGEList[keepers,]
+
+log2.cpm.filtered <- cpm(myDGEList.filtered, log=TRUE)
+log2.cpm.filtered.df <- as_tibble(log2.cpm.filtered, rownames = "geneID")
+colnames(log2.cpm.filtered.df) <- c("geneID", sampleLabels)
+log2.cpm.filtered.df.pivot <- pivot_longer(log2.cpm.filtered.df, # dataframe to be pivoted
+                                           cols = HS01:CL13, # column names to be stored as a SINGLE variable
+                                           names_to = "samples", # name of that new variable (column)
+                                           values_to = "expression") # name of new variable (column) storing all the values (data)
+
+p2 <- ggplot(log2.cpm.filtered.df.pivot) +
+  aes(x=samples, y=expression, fill=samples) +
+  geom_violin(trim = FALSE, show.legend = FALSE) +
+  stat_summary(fun = "median", 
+               geom = "point", 
+               shape = 95, 
+               size = 10, 
+               color = "black", 
+               show.legend = FALSE) +
+  labs(y="log2 expression", x = "sample",
+       title="Log2 Counts per Million (CPM)",
+       subtitle="filtered, non-normalized",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw()
+
+myDGEList.filtered.norm <- calcNormFactors(myDGEList.filtered, method = "TMM")
+log2.cpm.filtered.norm <- cpm(myDGEList.filtered.norm, log=TRUE)
+log2.cpm.filtered.norm.df <- as_tibble(log2.cpm.filtered.norm, rownames = "geneID")
+colnames(log2.cpm.filtered.norm.df) <- c("geneID", sampleLabels)
+log2.cpm.filtered.norm.df.pivot <- pivot_longer(log2.cpm.filtered.norm.df, # dataframe to be pivoted
+                                                cols = HS01:CL13, # column names to be stored as a SINGLE variable
+                                                names_to = "samples", # name of that new variable (column)
+                                                values_to = "expression") # name of new variable (column) storing all the values (data)
+
+p3 <- ggplot(log2.cpm.filtered.norm.df.pivot) +
+  aes(x=samples, y=expression, fill=samples) +
+  geom_violin(trim = FALSE, show.legend = FALSE) +
+  stat_summary(fun = "median", 
+               geom = "point", 
+               shape = 95, 
+               size = 10, 
+               color = "black", 
+               show.legend = FALSE) +
+  labs(y="log2 expression", x = "sample",
+       title="Log2 Counts per Million (CPM)",
+       subtitle="filtered, TMM normalized",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw()
+
+p1
+```
+
+### Signal distribution: filtered and normalized data
+
+```{r processed data}
+p3
+```
+
+### PCA plot
+
+```{r PCA}
+library(tidyverse)
+library(DT)
+library(gt)
+library(plotly)
+
+group <- targets$group
+group <- factor(group)
+
+pca.res <- prcomp(t(log2.cpm.filtered.norm), scale.=F, retx=T)
+pc.var<-pca.res$sdev^2 # sdev^2 captures these eigenvalues from the PCA result
+pc.per<-round(pc.var/sum(pc.var)*100, 1) 
+pca.res.df <- as_tibble(pca.res$x)
+pca.plot <- ggplot(pca.res.df) +
+  aes(x=PC1, y=PC2, label=sampleLabels, color = group) +
+  geom_point(size=4) +
+  stat_ellipse() +
+  xlab(paste0("PC1 (",pc.per[1],"%",")")) + 
+  ylab(paste0("PC2 (",pc.per[2],"%",")")) +
+  labs(title="PCA plot",
+       caption=paste0("produced on ", Sys.time())) +
+  coord_fixed() +
+  theme_bw()
+
+ggplotly(pca.plot)
+
+```
+
+Row {data-height=400}
+------------------------------------------------------------------------------
+
+### Filtered and normalized counts per million (CPM)
+
+```{r filtered and normalized data}
+mydata.df <- mutate(log2.cpm.filtered.norm.df,
+                    healthy.AVG = (HS01 + HS02 + HS03 + HS04 + HS05)/5, 
+                    disease.AVG = (CL08 + CL10 + CL11 + CL12 + CL13)/5,
+                    #now make columns comparing each of the averages above that you're interested in
+                    LogFC = (disease.AVG - healthy.AVG)) %>% #note that this is the first time you've seen the 'pipe' operator
+  mutate_if(is.numeric, round, 2)
+
+datatable(mydata.df[,c(1,12:14)], 
+          extensions = c('KeyTable', "FixedHeader"), 
+          filter = 'top',
+          options = list(keys = TRUE, 
+                         searchHighlight = TRUE, 
+                         pageLength = 10, 
+                         lengthMenu = c("10", "25", "50", "100")))
+```
+
+DEGs {data-orientation=columns data-icon="fa-random"}
+===================================== 
+
+Column {data-width=500}
+------------------------------------------------------------------------------
+
+### Volcano plot
+
+```{r volcano plot}
+library(tidyverse)
+library(limma)
+library(edgeR) 
+library(gt)
+library(DT) 
+library(plotly) 
+
+group <- factor(targets$group)
+design <- model.matrix(~0 + group)
+colnames(design) <- levels(group)
+
+v.DEGList.filtered.norm <- voom(myDGEList.filtered.norm, design, plot = FALSE)
+fit <- lmFit(v.DEGList.filtered.norm, design)
+contrast.matrix <- makeContrasts(infection = disease - healthy,
+                                 levels=design)
+
+fits <- contrasts.fit(fit, contrast.matrix)
+ebFit <- eBayes(fits)
+myTopHits <- topTable(ebFit, adjust ="BH", coef=1, number=40000, sort.by="logFC")
+
+myTopHits.df <- myTopHits %>%
+  as_tibble(rownames = "geneID")
+
+vplot <- ggplot(myTopHits.df) +
+  aes(y=-log10(adj.P.Val), x=logFC, text = paste("Symbol:", geneID)) +
+  geom_point(size=2) +
+  geom_hline(yintercept = -log10(0.01), linetype="longdash", colour="grey", size=1) +
+  geom_vline(xintercept = 1, linetype="longdash", colour="#BE684D", size=1) +
+  geom_vline(xintercept = -1, linetype="longdash", colour="#2C467A", size=1) +
+  #annotate("rect", xmin = 1, xmax = 12, ymin = -log10(0.01), ymax = 7.5, alpha=.2, fill="#BE684D") +
+  #annotate("rect", xmin = -1, xmax = -12, ymin = -log10(0.01), ymax = 7.5, alpha=.2, fill="#2C467A") +
+  labs(title="Volcano plot",
+       subtitle = "Cutaneous leishmaniasis",
+       caption=paste0("produced on ", Sys.time())) +
+  theme_bw()
+
+ggplotly(vplot)
+
+```
+
+
+Column {.tabset data-width=500}
+------------------------------------------------------------------------------
+
+### DEG table
+
+```{r DEG table}
+results <- decideTests(ebFit, method="global", adjust.method="BH", p.value=0.01, lfc=2)
+colnames(v.DEGList.filtered.norm$E) <- sampleLabels
+diffGenes <- v.DEGList.filtered.norm$E[results[,1] !=0,]
+diffGenes.df <- as_tibble(diffGenes, rownames = "geneID")
+datatable(diffGenes.df, 
+          extensions = c('KeyTable', "FixedHeader"), 
+          caption = 'Table 1: DEGs in cutaneous leishmaniasis',
+          options = list(keys = TRUE, searchHighlight = TRUE, pageLength = 10, lengthMenu = c("10", "25", "50", "100"))) %>%
+  formatRound(columns=c(2:11), digits=2)
+
+```
+
+### heatmap
+
+```{r heatmap}
+library(tidyverse)
+library(gplots)
+library(RColorBrewer)
+myheatcolors <- rev(brewer.pal(name="RdBu", n=11))
+clustRows <- hclust(as.dist(1-cor(t(diffGenes), method="pearson")), method="complete") #cluster rows by pearson correlation
+clustColumns <- hclust(as.dist(1-cor(diffGenes, method="spearman")), method="complete")
+module.assign <- cutree(clustRows, k=2)
+module.color <- rainbow(length(unique(module.assign)), start=0.1, end=0.9) 
+module.color <- module.color[as.vector(module.assign)] 
+heatmap.2(diffGenes, 
+          Rowv=as.dendrogram(clustRows), 
+          Colv=as.dendrogram(clustColumns),
+          RowSideColors=module.color,
+          col=myheatcolors, scale='row', labRow=NA,
+          density.info="none", trace="none",  
+          cexRow=1, cexCol=1, margins=c(8,20))
+```
+
+Functional enrichment {data-icon="fa-signal"}
+===================================== 
+
+Column {.tabset data-width=500}
+------------------------------------------------------------------------------
+
+### GO - enriched in disease
+
+```{r gostplot1}
+modulePick <- 2 
+myModule_up <- diffGenes[names(module.assign[module.assign %in% modulePick]),] 
+hrsub_up <- hclust(as.dist(1-cor(t(myModule_up), method="pearson")), method="complete") 
+
+library(limma)
+library(gplots) #for heatmaps
+library(DT) #interactive and searchable tables of our GSEA results
+library(GSEABase) #functions and methods for Gene Set Enrichment Analysis
+library(Biobase) #base functions for bioconductor; required by GSEABase
+library(GSVA) #Gene Set Variation Analysis, a non-parametric and unsupervised method for estimating variation of gene set enrichment across samples.
+library(gprofiler2) #tools for accessing the GO enrichment results using g:Profiler web resources
+library(clusterProfiler) # provides a suite of tools for functional enrichment analysis
+library(msigdbr) # access to msigdb collections directly within R
+library(enrichplot) # great for making the standard GSEA enrichment plots
+gost.res_up <- gost(rownames(myModule_up), organism = "hsapiens", correction_method = "fdr")
+gostplot(gost.res_up, interactive = T, capped = T) #set interactive=FALSE to get plot for publications
+```
+
+### GO - enriched in healthy
+
+```{r gostplot2}
+modulePick <- 1 
+myModule_down <- diffGenes[names(module.assign[module.assign %in% modulePick]),] 
+hrsub_down <- hclust(as.dist(1-cor(t(myModule_down), method="pearson")), method="complete") 
+gost.res_down <- gost(rownames(myModule_down), organism = "hsapiens", correction_method = "fdr")
+gostplot(gost.res_down, interactive = T, capped = T) #set interactive=FALSE to get plot for publications
+```
+
+Column {data-width=500}
+------------------------------------------------------------------------------
+
+### GSEA table
+
+```{r GSEA}
+hs_gsea_c2 <- msigdbr(species = "Homo sapiens", # change depending on species your data came from
+                      category = "C2") %>% # choose your msigdb collection of interest
+  dplyr::select(gs_name, gene_symbol) #just get the columns corresponding to signature name and gene symbols of genes in each signature 
+
+# Now that you have your msigdb collections ready, prepare your data
+# grab the dataframe you made in step3 script
+# Pull out just the columns corresponding to gene symbols and LogFC for at least one pairwise comparison for the enrichment analysis
+mydata.df.sub <- dplyr::select(mydata.df, geneID, LogFC)
+mydata.gsea <- mydata.df.sub$LogFC
+names(mydata.gsea) <- as.character(mydata.df.sub$geneID)
+mydata.gsea <- sort(mydata.gsea, decreasing = TRUE)
+
+# run GSEA using the 'GSEA' function from clusterProfiler
+myGSEA.res <- GSEA(mydata.gsea, TERM2GENE=hs_gsea_c2, verbose=FALSE)
+myGSEA.df <- as_tibble(myGSEA.res@result)
+
+# view results as an interactive table
+datatable(myGSEA.df, 
+          extensions = c('KeyTable', "FixedHeader"), 
+          caption = 'Signatures enriched in leishmaniasis',
+          options = list(keys = TRUE, searchHighlight = TRUE, pageLength = 10, lengthMenu = c("10", "25", "50", "100"))) %>%
+  formatRound(columns=c(3:10), digits=2)
+```
+
+
+About {data-orientation=rows data-icon="fa-comment-alt"}
+===================================== 
+
+Row {data-height=1000}
+------------------------------------------------------------------------------
+
+Use this page to describe the results in your own words.  Some things to think about:
+
+* What are the key takeaways from the analysis?
+* What types of analyses would you want to do next?
+* Based on your analysis, what wet-lab experiments would you pursue?
+* How could you expand on or otherwise enhance this data dashboard?
+

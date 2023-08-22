@@ -1,0 +1,174 @@
+---
+title: "<center> The transcriptional response during human cutaneous leishmaniasis <center>"
+author: "<center> DIYtranscriptomics class<center><br>"
+date: "<center> _`r Sys.Date()`_ <center>"
+output:
+  html_document:
+    code_folding: show
+    df_print: paged
+    theme: yeti
+    highlight: tango
+    toc: yes
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    number_sections: true
+  pdf_document:
+    fig_caption: yes
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+library(rmarkdown)
+library(tinytex)
+library(knitr)
+knitr::opts_chunk$set(echo=TRUE, warning=FALSE, message=FALSE, cache = TRUE)
+```
+
+## Introduction
+
+During the Fall 2021 offering of **[DIYtranscriptomics](http://diytranscriptomics.com/)**, we analyzed a subset of patients and healthy controls from [Amorim et al., 2019](https://doi.org/10.1126/scitranslmed.aax4204).  This reproducible and dynamic report was created using Rmarkdown and the [Knitr package](https://yihui.name/knitr/), and summarizes the basic code and outputs (plots, tables, etc) produced during the course. 
+
+***
+
+## R packages used
+
+A variety of R packages was used for this analysis.  All graphics and data wrangling were handled using the [tidyverse suite of packages](https://www.tidyverse.org/).  All packages used are available from the Comprehensive R Archive Network (CRAN), Bioconductor.org, or Github.  
+
+***
+
+## Read mapping
+
+### Aligning raw reads with Kallisto
+
+Raw reads were mapped to the human reference transcriptome using [Kallisto](https://pachterlab.github.io/kallisto/), version 0.46.2.  The quality of raw reads, as well as the results of Kallisto mapping are summarized in [this summary report](http://DIYtranscriptomics.github.io/Data/files/multiqc_report.html) generated using [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) and [multiqc](https://multiqc.info/).
+
+
+***
+
+### Importing count data into R
+
+After read mapping with Kallisto, [TxImport](https://bioconductor.org/packages/release/bioc/html/tximport.html) was used to read kallisto outputs into the R environment.  Annotation data from Biomart was used to summarize data from transcript-level to gene-level.
+
+```{r step 1 - TxImport}
+
+```
+
+***
+
+## Preprocessing
+
+### Impact of filtering and normalization
+
+```{r step2 - dataWrangling}
+
+```
+
+Filtering was carried out to remove lowly expressed genes. Genes with less than 1 count per million (CPM) in at least 5 or more samples filtered out.  This reduced the number of genes from `r nrow(myDGEList)` to `r nrow(myDGEList.filtered)`.  
+
+***
+
+### table of filtered and normalized data
+
+```{r step 3 - multivariate part 1 (data table)}
+
+```
+
+The table shown below includes expression data for `r nrow(myDGEList.filtered)` genes. You can sort and search the data directly from the table.
+
+
+***
+
+## PCA plot
+
+```{r step 3 - multivariate part 2 (PCA plot)}
+
+```
+
+***
+
+## Volcano plot
+
+```{r step 5 - diffGenes part 1 (volcano plot)}
+
+```
+
+***
+
+## Table of DEGs
+
+To identify differentially expressed genes, precision weights were first applied to each gene based on its mean-variance relationship using [VOOM](https://genomebiology.biomedcentral.com/articles/10.1186/gb-2014-15-2-r29), then data was normalized using the [TMM method](https://genomebiology.biomedcentral.com/articles/10.1186/gb-2010-11-3-r25) in [EdgeR](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2796818/).  Linear modeling and bayesian stats were employed via [Limma](https://academic.oup.com/nar/article/43/7/e47/2414268) to find genes that were up- or down-regulated in leishmania patients by 4-fold or more, with a false-discovery rate (FDR) of 0.01. 
+
+```{r step 5 - diffGenes part 2 (DEG table)}
+
+```
+
+***
+
+## Heatmaps and modules
+
+Pearson correlation was used to cluster **`r nrow(diffGenes)`** differentially expressed genes, which were then represented as heatmap with the data scaled by Zscore for each row.
+
+```{r step 6 - modules part 1 (heatmap)}
+
+```
+
+
+```{r step 6 - modules part 2 (upregulated genes)}
+
+```
+
+
+```{r step 6 - modules part 3 (downregulated genes)}
+
+```
+
+
+
+## GO enrichment
+
+GO enrichment for the `r nrow(myTopHits)` genes induced by infection
+
+```{r step 7 - functionalEnrichment part 1 (gostplot for upregulated genes)}
+
+
+```
+
+```{r step 7 - functionalEnrichment part 2 (gostplot for downregulated genes)}
+
+```
+
+## GSEA
+
+```{r step 7 - functionalEnrichment part 3 (GSEA table)}
+
+```
+
+```{r step 7 - functionalEnrichment part 4 (enrich plot)}
+
+```
+
+
+```{r step 7 - functionalEnrichment part 5 (bubble plot)}
+
+```
+
+***
+
+## Conclusions
+
+Describe the results in your own words.  Some things to think about:
+
+* What are the key takeaways from the analysis?
+* What types of analyses would you want to do next?
+* Based on your analysis, are there any wet-lab experiments would might priortize?
+* How could you expand on or otherwise enhance this Rmarkdown report?
+
+## Session info
+
+The output from running 'sessionInfo' is shown below and details all packages and version necessary to reproduce the results in this report.
+
+```{r session info}
+sessionInfo()
+```
+
