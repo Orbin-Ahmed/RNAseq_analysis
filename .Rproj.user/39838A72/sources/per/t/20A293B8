@@ -1,0 +1,26 @@
+{
+    "id": "20A293B8",
+    "path": "C:/Test/Step4_publicData.R",
+    "project_path": "Step4_publicData.R",
+    "type": "r_source",
+    "hash": "2740200594",
+    "contents": "",
+    "dirty": false,
+    "created": 1691952311757.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "8,14",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1692226486,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1692226486562,
+    "read_only": false,
+    "read_only_alternatives": []
+}

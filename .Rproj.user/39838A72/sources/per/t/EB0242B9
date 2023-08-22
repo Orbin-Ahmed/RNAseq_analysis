@@ -1,0 +1,26 @@
+{
+    "id": "EB0242B9",
+    "path": "C:/Test/Step2_dataWrangling.R",
+    "project_path": "Step2_dataWrangling.R",
+    "type": "r_source",
+    "hash": "4003354810",
+    "contents": "",
+    "dirty": false,
+    "created": 1691790220056.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "190,7",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1691795298,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1691795299007,
+    "read_only": false,
+    "read_only_alternatives": []
+}
