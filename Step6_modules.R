@@ -5,6 +5,8 @@ library(gplots)
 library(gameofthrones)
 library(heatmaply)
 library(d3heatmap)
+library(dplyr)
+library(pheatmap)
 
 myheatcolors1 <- bluered(75)
 display.brewer.all()
@@ -88,24 +90,25 @@ moduleData <- diffGenes[moduleSymbols$geneID,]
 moduleData.df <- as_tibble(moduleData, rownames = "geneSymbol")
 write_tsv(moduleData.df,"module_upRegulated.tsv")
 
-# Convert the specified columns to numeric values
+mySelectedGenes <- mydata.filter
+str(mySelectedGenes)
+
+x_data <- as.data.frame(mySelectedGenes, stringsAsFactors = FALSE)
 numeric_columns <- c("Dexamethasone.AVG", "Vehicle.AVG", "LogFC")
-mySelectedGenes.matrix[, numeric_columns] <- as.numeric(mySelectedGenes.matrix[, numeric_columns])
+x_data[numeric_columns] <- lapply(x_data[numeric_columns], as.numeric)
+x_data <- na.omit(x_data)
 
-# Extract only the numeric expression columns
-expression_data <- mySelectedGenes.matrix[, numeric_columns]
-
-# Calculate hierarchical clustering using Pearson correlation
-hr <- hclust(as.dist(1 - cor(t(expression_data), method = "pearson")), method = "complete")
-
-# Calculate hierarchical clustering using Spearman correlation
-hc <- hclust(as.dist(1 - cor(expression_data, method = "spearman")), method = "average")
+hr <- hclust(as.dist(1 - cor(t(x_data[, numeric_columns]), method = "pearson")), method = "complete")
+hc <- hclust(as.dist(1 - cor(x_data[, numeric_columns], method = "spearman")), method = "average")
 
 
 
-heatmap.2(mySelectedGenes.matrix, 
-          Rowv=NA, Colv=NA, 
-          col=myheatcolors1, 
-          scale="row", density.info="none", 
-          trace="none", labCol=NA, 
-          cexRow=1.5, cexCol=1, margins=c(8,20), key = F)
+numeric_data <- x_data[, numeric_columns]
+
+pheatmap(as.matrix(numeric_data),
+         color = myheatcolors1,
+         scale = "row",
+         cluster_cols = FALSE,
+         cluster_rows = FALSE,
+         display_numbers = TRUE)
+
