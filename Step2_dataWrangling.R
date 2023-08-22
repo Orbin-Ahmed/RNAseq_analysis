@@ -47,10 +47,10 @@ log2.cpm <- cpm(myDGEList, log=TRUE)
 log2.cpm.df <- as_tibble(log2.cpm, rownames = "geneID")
 log2.cpm.df
 colnames(log2.cpm.df) <- c("geneID", sampleLabels)
-log2.cpm.df.pivot <- pivot_longer(log2.cpm.df, # dataframe to be pivoted
-                                  cols = SCR1.1:SiP5.2, # column names to be stored as a SINGLE variable
-                                  names_to = "samples", # name of that new variable (column)
-                                  values_to = "expression") # name of new variable (column) storing all the values (data)
+log2.cpm.df.pivot <- pivot_longer(log2.cpm.df,
+                                  cols = SCR1.1:SiP5.2,
+                                  names_to = "samples",
+                                  values_to = "expression")
 
 log2.cpm.df.pivot
 
